@@ -1,12 +1,12 @@
-# Ignore venv
+# Python virtualenv and bytecode
 venv/
 __pycache__/
 *.pyc
 
-# PlatformIO build output
+# PlatformIO build files
 MCU_CarControl/.pio/
 MCU_CarControl/.vscode/
 
-# VS Code settings
+# VS Code workspace
 .vscode/
 *.code-workspace
