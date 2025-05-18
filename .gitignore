@@ -1,0 +1,12 @@
+# Ignore venv
+venv/
+__pycache__/
+*.pyc
+
+# PlatformIO build output
+MCU_CarControl/.pio/
+MCU_CarControl/.vscode/
+
+# VS Code settings
+.vscode/
+*.code-workspace
