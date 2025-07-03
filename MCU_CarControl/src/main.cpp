@@ -3,8 +3,10 @@
 
 Servo servo;
 Servo esc;
-const int servoPin = 5; // Pin number for the servo
-const int escPin = 4; // Pin number for the ESC
+const int servoPin = 22; // Pin number for the servo
+const int escPin = 26; // Pin number for the ESC
+const int SERVO_CENTER = 1618;
+
 
 void setServo(uint16_t microseconds) {
   //Serial.println("setServo called");
@@ -76,12 +78,12 @@ void handShake(){
         //Serial.println("Arduino: Handshake complete");
       }
       else{
-//        Serial.print("Arduino: Unexpected message -> ");
-//        Serial.println(receivedData);
+        Serial.print("Arduino: Unexpected message -> ");
+        Serial.println(receivedData);
       }
       
     }
-    if (millis() - startTime > 5000) {  // 5-second timeout
+    if (millis() - startTime > 15000) {  // 15-second timeout
       break;
     }
   }
@@ -93,13 +95,13 @@ int getSteering(){
 
   if (steer_raw < -10) {
     // Moved left
-    steer_us = map(steer_raw, -128, 0, 1000, 1500); // scale to left PWM
+    steer_us = map(steer_raw, -128, 0, 2000, SERVO_CENTER); // scale to left PWM
   } else if (steer_raw > 10) {
     // Moved right
-    steer_us = map(steer_raw, 0, 127, 1500, 2000);  // scale to right PWM
+    steer_us = map(steer_raw, 0, 127, SERVO_CENTER, 1000);  // scale to right PWM
   } else {
     // Center
-    steer_us = 1500;
+    steer_us = SERVO_CENTER;
   }
   
   return steer_us;
@@ -135,23 +137,28 @@ void setup() {
 
   ps5.begin("4C:B9:9B:A9:63:16");
 
-  //handShake();
-  while (!ps5.isConnected()) {
-    Serial.println(" Not Connected");
 
-  }
-  Serial.println("Connected!");
+  handShake();
+  // while (!ps5.isConnected()) {
+  //   Serial.println(" Not Connected");
+
+  // }
+  // Serial.println("Connected!");
+
 
 }
 
+
+
 void loop() {
   // put your main code here, to run repeatedly:
-  //getInstruction();
+  getInstruction();
 
-  //getInstruction();  
-  //setServo(getSteering());
-  int throttle = getThrottle();
-  int steering = getSteering();
-  //setESC(throttle);
-  setServo(steering);
+
+  // int steering = getSteering();
+  // setServo(steering);
+  
+  // int throttle = getThrottle();
+  // setESC(throttle);
+
 }
