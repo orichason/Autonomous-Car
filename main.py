@@ -8,14 +8,6 @@ import autonomous
 #pc port: 'COM4'
 mcu_serial = serial.Serial(port='/dev/ttyACM0', baudrate=115200, timeout=1)
 time.sleep(2)
-# lidar = Lidar()
-
-
-# SERVO_CENTER = 1618
-# SERVO_LEFT = SERVO_CENTER - 300
-# SERVO_RIGHT = SERVO_CENTER + 300
-
-# need to write autonomous logic 
 
 def map_value(x, in_min, in_max, out_min, out_max):
     return int((x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min)
@@ -33,8 +25,6 @@ def get_steering(left_stick_x):
 def get_throttle(r2_val, l2_val):
     r2 = int((r2_val + 1) * 127.5) # Scale to 0–255
     l2 = int((l2_val + 1.0) * 127.5)
-    print(f"r2 = {r2}")
-    print(f"l2 = {l2}")
 
     if r2 > 10 and l2 <= 10:
         return map_value(r2, 0, 255, 1500, 2000)
@@ -102,7 +92,7 @@ def esc_call(microseconds):
 def send_instruction(device, microseconds):
     if device == "servo":
         mcu_serial.write(b's') #calling s for servo
-        print("PC: Sent 's' to MCU")
+        #print("PC: Sent 's' to MCU")
 
         if not wait_for_mcu(0.01, 10):
             print("PC: No acknowledgment from MCU for 's'")
@@ -110,24 +100,25 @@ def send_instruction(device, microseconds):
 
         # Read the acknowledgment message
         ack_message = mcu_serial.readline().decode('ascii').strip()
-        print(f"MCU response: {ack_message}")
+        #print(f"MCU response: {ack_message}")
 
         # Send servo microseconds to arduino
+        #print(microseconds)
         servo_call(microseconds)
-        print("PC: Sent servo call to MCU")
+        #print("PC: Sent servo call to MCU")
 
         if not wait_for_mcu(0.01, 5):
             print("PC: No acknowledgment from MCU for servo call")
             return
         # Read the acknowledgment message
-        servo_message = mcu_serial.readline().decode('ascii').strip()
-        print(f"MCU response: {servo_message}")
+        #servo_message = mcu_serial.readline().decode('ascii').strip()
+        #print(f"MCU response: {servo_message}")
 
 
     elif device == "esc":
         mcu_serial.write(b'e')
 
-        print("PC: Sent 'e' to MCU")
+        #print("PC: Sent 'e' to MCU")
 
         if not wait_for_mcu(0.01, 10):
             print("PC: No acknowledgment from MCU for 'e'")
@@ -135,18 +126,18 @@ def send_instruction(device, microseconds):
 
         # Read the acknowledgment message
         ack_message = mcu_serial.readline().decode('ascii').strip()
-        print(f"MCU response: {ack_message}")
+        #print(f"MCU response: {ack_message}")
 
         # Send servo microseconds to arduino
         esc_call(microseconds)
-        print("PC: Sent esc call to Arduino")
+        #print("PC: Sent esc call to Arduino")
 
         if not wait_for_mcu(0.01, 5):
             print("PC: No acknowledgment from MCU for servo call")
             return
         # Read the acknowledgment message
-        esc_message = mcu_serial.readline().decode('ascii').strip()
-        print(f"MCU response: {esc_message}")
+        #esc_message = mcu_serial.readline().decode('ascii').strip()
+        #print(f"MCU response: {esc_message}")
 
 def arm_esc():
     print("ESC Arming Sequence Starting")
@@ -177,6 +168,39 @@ def set_steering(steering_percent):
     print(microseconds)
     send_instruction("servo", microseconds)
 
+def stop_car():
+    send_instruction("servo", autonomous.SERVO_CENTER)
+    send_instruction("esc", autonomous.THROTTLE_STOP)
+
+def map_angle_to_pwm(angle):
+    if angle >= 270:
+        delta = angle - 360
+        return int(map_value(delta, -90, 0, 2000, autonomous.SERVO_CENTER))
+    else:
+        delta = angle
+        return int(map_value(delta, 0, 90, autonomous.SERVO_CENTER, 1000))
+
+def get_autonomous_throttle(angle, distance):
+    print(f"Angle = {angle}")
+    print(f"Distance = {distance}")
+    if distance < 300:
+        return autonomous.THROTTLE_STOP
+    
+    return autonomous.THROTTLE_SLOW
+    
+    distance_ratio = min(distance / autonomous.MAX_DISTANCE, 1.0)
+
+    if angle >= 270:
+        delta = angle - 360
+    else:
+        delta = angle
+
+    turn_ratio = abs(delta) / 90.0
+
+    throttle = autonomous.THROTTLE_SLOW + (autonomous.MAX_THROTTLE - autonomous.THROTTLE_SLOW) * distance_ratio * (1 - turn_ratio)
+
+    return int(throttle)
+
 def manual_driving():
     lx = joystick.get_axis(0)   # Left stick X axis
     r2 = joystick.get_axis(5)   # R2 (Right trigger)
@@ -184,7 +208,7 @@ def manual_driving():
 
     steer_us = get_steering(lx)
     throttle_us = get_throttle(r2, l2)
-        
+    #print(steer_us)      
     send_instruction("servo", steer_us)
     send_instruction("esc", throttle_us)
 
@@ -196,35 +220,26 @@ joystick.init()
 manual_mode = True
 prev_button_state = False
 
-while True:
-    autonomous.lidar.set_callback(autonomous.on_full_scan)
-    #throttle = autonomous.THROTTLE_STOP
-    # direction = autonomous.on_full_scan()
-    # if direction == autonomous.SERVO_LEFT:
-    #     print("left is more open")
-    # elif direction == autonomous.SERVO_RIGHT:
-    #     print("right is more open")
-
-    # else:
-    #     print("no direction")
-    # if autonomous.object_detected():
-    #     direction = autonomous.open_direction()
-    #     if direction == autonomous.SERVO_LEFT:
-    #         print("left is more open")
-    #     else:
-    #         print("right is more open")
-    # else:
-    #     throttle = autonomous.THROTTLE_CRUISE
-    time.sleep(0.01)
+# while True:
+#     open_angle = autonomous.get_open_angle()
+#     open_distance = autonomous.get_target_distance()
+#     throttle = get_autonomous_throttle(open_angle, open_distance)
+#     #print(f"Open angle = {open_angle}")
+#     print(f"Throttle = {throttle}")
 
 if handshake_with_mcu():
     print("PC: Ready to communicate")
     try:
+        # while True:
+        #     send_instruction("servo", 1500)
+        #     time.sleep(0.6)
+        #     send_instruction("servo", 2000)
+        #     time.sleep(0.6)
+        #     send_instruction("servo", 1000)
+        #     time.sleep(0.6)
         input("Press enter to begin while true loop")
-        autonomous.start_lidar_thread()
         last_scan_id = None
         throttle = autonomous.THROTTLE_STOP
-        #send_instruction("esc", throttle)
         while True:
             pygame.event.pump()
 
@@ -232,6 +247,8 @@ if handshake_with_mcu():
 
             if button_pressed and not prev_button_state:
                     manual_mode = not manual_mode
+                    send_instruction("esc", autonomous.THROTTLE_STOP)
+                    send_instruction("servo", autonomous.SERVO_CENTER)
                     print("Switched to", "MANUAL" if manual_mode else "AUTONOMOUS")
                     time.sleep(0.5)
             
@@ -241,29 +258,15 @@ if handshake_with_mcu():
                 manual_driving()
             
             else:
-                scan = autonomous.latest_full_scan
-                if not scan:
-                    continue
-
-                if id(scan) == last_scan_id:
-                    continue
-
-                last_scan_id = id(scan)
-
-                throttle = autonomous.THROTTLE_STOP
-                
-                if autonomous.object_detected():
-                    direction = autonomous.open_direction()
-                    if direction == autonomous.SERVO_LEFT:
-                        print("left is more open")
-                    else:
-                        print("right is more open")
-                else:
-                    throttle = autonomous.THROTTLE_CRUISE
-                #send_instruction("servo", autonomous.SERVO_CENTER)
-                #send_instruction("esc", throttle)
-                time.sleep(0.01)
-
+                open_angle = autonomous.get_open_angle()
+                open_distance = autonomous.get_target_distance()
+                throttle = get_autonomous_throttle(open_angle, open_distance)
+                #print(f"Open angle = {open_angle}")
+                servo_us = map_angle_to_pwm(open_angle)
+                #print(f"Steer = {servo_us}")
+                print("-----------------------------")
+                send_instruction("servo", servo_us)
+                send_instruction("esc", throttle)
     except KeyboardInterrupt:
         print("\nPC: Program interrupted by user. Exiting...")
     finally:
