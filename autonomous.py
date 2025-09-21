@@ -1,6 +1,8 @@
 from lidar import Lidar
 import time
 import math
+import struct
+
 
 # Initialize the Lidar object and begin scanning in background threads
 lidar = Lidar()
@@ -19,7 +21,6 @@ MAX_THROTTLE = 1600     # Max throttle limit (safety cap)
 MAX_DISTANCE = 1000
 
 DISPARITY_THRESHOLD = 200
-
 WIDTH_OF_CAR = 300 #mm
 LIDAR_RESOLUTION = 0.717
 
@@ -31,6 +32,14 @@ target_distance = 0
 
 
 previous_time = time.time()
+
+file = r"/home/OriPi/FSD-Car New/PlaybackLog.bin"
+f = open(file, 'ab')
+
+def write_frame(points):
+    for angle, distance in points:
+        f.write(struct.pack('fH', angle, distance)) # 0 = angle, 1 = distance
+    f.flush()
 
 def object_detected():
     global obj_detected
@@ -66,8 +75,6 @@ def get_disparities(filtered): # nOTE: SEE IF YOU CAN USE DISTANCES INSTEAD OF F
         d2 = filtered[i+1][1]
         if abs(d1 - d2) > DISPARITY_THRESHOLD:
             # Always extend toward the farther point (higher distance)
-            print(f"d1 = {d1} , angle1 = {filtered[i][0]}")
-            print(f"d2 = {d2} , angle2 = {filtered[i+1][0]}")
             if d2 >= d1:
                 farther_idx = i + 1
                 closer_distance = d1
@@ -88,6 +95,8 @@ def on_full_scan(scan): #clean up function, split into little functions
 
     filtered = [(p["angle"], p["distance"]) for p in scan if (p["angle"] <= 90 or p["angle"] >= 270) and p["confidence"] > 20]
 
+    write_frame(filtered)
+
     if not filtered:
         target_angle = SERVO_CENTER
         return
@@ -102,7 +111,7 @@ def on_full_scan(scan): #clean up function, split into little functions
         theta = math.atan(effective_width / closer_distance)
         theta_deg = math.degrees(theta)
         samples_to_cover = int(theta_deg * LIDAR_RESOLUTION)
-        print(f"samples to cover: {samples_to_cover}")
+        #print(f"samples to cover: {samples_to_cover}")
         i = farther_idx
         samples_filled = 0
 

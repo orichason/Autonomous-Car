@@ -265,8 +265,8 @@ if handshake_with_mcu():
                 servo_us = map_angle_to_pwm(open_angle)
                 #print(f"Steer = {servo_us}")
                 print("-----------------------------")
-                send_instruction("servo", servo_us)
-                send_instruction("esc", throttle)
+                #send_instruction("servo", servo_us)
+                #send_instruction("esc", throttle)
     except KeyboardInterrupt:
         print("\nPC: Program interrupted by user. Exiting...")
     finally:
